@@ -12,6 +12,7 @@
     output=json
 - Install boto3, matplotlib, requests and tornado with pip
 - Download your personal labsuser.pem file and add it to your repository
+- Make sure to give the labsuser.pem file the right permissions with: "yes | chmod 400 labsuser.pem"
 
 ## Run MySQL services
 Run "MySQL_scripts/standalone.py" to create a t2.micro EC2 instance that installs MySQL stand-alone.

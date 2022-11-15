@@ -1,6 +1,6 @@
 # Keys are defined in configuration file
 # MAKE SURE YOU UPDATED YOUR .AWS/credentials file
-# MAKE SURE boto3, matplotlib, requests and tornado are all installed using pip
+# MAKE SURE boto3, matplotlib, requests, fabric and tornado are all installed using pip
 import boto3
 import json
 import time
@@ -12,110 +12,28 @@ from datetime import datetime, timedelta
 
 import botocore
 import paramiko
+from paramiko import SSHClient
+#from scp import SCPClient
+from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-# import webbrowser
-
-# allows us to geth the path for the pem file
-from pathlib import Path
-
-def get_project_root() -> Path:
-    """
-    Function for getting the path where the program is executed
-    @ return: returns the parent path of the path were the program is executed
-    """
-    return Path(__file__).parent
-
-# This makes the plots made by the script open in a webbrowser
-# mpl.use('WebAgg')
 
 """
 The user data constants are used to setup and download programs on the instances
 They are passed as arguments in the create instance step
 """
 
-slave_userdata="""#!/bin/bash
-cd /home/ubuntu
-sudo apt-get update
-service mysqld stop
-yum remove mysql-server mysql mysql-devel
-mkdir -p /opt/mysqlcluster/home
-cd /opt/mysqlcluster/home
-wget http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.2/mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz/from/http://mysql.mirrors.pair.com/
-tar xvf mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz
-ln -s mysql-cluster-gpl-7.2.1-linux2.6-x86_64 mysqlc
-echo ‘export MYSQLC_HOME=/opt/mysqlcluster/home/mysqlc’ > /etc/profile.d/mysqlc.sh
-echo ‘export PATH=$MYSQLC_HOME/bin:$PATH’ >> /etc/profile.d/mysqlc.sh
-source /etc/profile.d/mysqlc.sh
+userdata = """
 """
-master_userdata="""#!/bin/bash
-cd /home/ubuntu
-sudo apt-get update
-service mysqld stop
-yum remove mysql-server mysql mysql-devel
-mkdir -p /opt/mysqlcluster/home
-cd /opt/mysqlcluster/home
-wget http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.2/mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz/from/http://mysql.mirrors.pair.com/
-tar xvf mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz
-ln -s mysql-cluster-gpl-7.2.1-linux2.6-x86_64 mysqlc
-echo ‘export MYSQLC_HOME=/opt/mysqlcluster/home/mysqlc’ > /etc/profile.d/mysqlc.sh
-echo ‘export PATH=$MYSQLC_HOME/bin:$PATH’ >> /etc/profile.d/mysqlc.sh
-source /etc/profile.d/mysqlc.sh
-mkdir -p /opt/mysqlcluster/deploy
-cd /opt/mysqlcluster/deploy
-mkdir conf
-mkdir mysqld_data
-mkdir ndb_data
-cd conf
-cat <<EOF >my.cnf
-[mysqld]
-ndbcluster
-datadir=/opt/mysqlcluster/deploy/mysqld_data
-basedir=/opt/mysqlcluster/home/mysqlc
-port=3306
-EOF
-cat <<EOF >config.ini
-[ndb_mgmd]
-hostname=domU-12-31-39-04-D6-A3.compute-1.internal
-datadir=/opt/mysqlcluster/deploy/ndb_data
-nodeid=1
-[ndbd default]
-noofreplicas=2
-datadir=/opt/mysqlcluster/deploy/ndb_data
-[ndbd]
-hostname=ip-10-72-50-247.ec2.internal
-nodeid=3
-[ndbd]
-hostname=ip-10-194-139-246.ec2.internal
-nodeid=4
-[mysqld]
-nodeid=50
-EOF
-cd /opt/mysqlcluster/home/mysqlc
-scripts/mysql_install_db –no-defaults –datadir=/opt/mysqlcluster/deploy/mysqld_data
-ndb_mgmd -f /opt/mysqlcluster/deploy/conf/config.ini –initial –configdir=/opt/mysqlcluster/deploy/conf 
-
-sudo wget http://downloads.mysql.com/docs/sakila-db.zip
-sudo unzip sakila-db.zip -d "/tmp/"
-mysql -u root -p
-SOURCE /tmp/sakila-db/sakila-schema.sql;
-SOURCE /tmp/sakila-db/sakila-data.sql;
-exit
-"""
-
 
 def createSecurityGroup(ec2_client):
     """
         The function creates a new security group in AWS
-        The function retrievs the vsp_id from the AWS portal, as it is personal and needed for creating a new group
-        It then creates the security group using boto3 package
-        then it waits for the creation
-        then it assigns new rules to the security group
 
         Parameters
         ----------
         ec2_client
-            client that allows for sertain functions using boto3
+            client that allows for certain functions using boto3
 
         Returns
         -------
@@ -159,6 +77,11 @@ def createSecurityGroup(ec2_client):
             'ToPort': 80,
             'IpProtocol': 'tcp',
             'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+        }, {
+            'FromPort': 3306,
+            'ToPort': 3306,
+            'IpProtocol': 'tcp',
+            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
         }]
     )
 
@@ -191,7 +114,7 @@ def getAvailabilityZones(ec2_client):
 
     return availabilityzones
 
-def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdata, nodetype, ip):
+def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdata, role):
     """
         function that creates EC2 instances on AWS
 
@@ -228,22 +151,21 @@ def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdat
         KeyName=KEY_NAME,
         SecurityGroupIds=SECURITY_GROUP,
         SubnetId=SUBNET_ID,
-        UserData=userdata
+        UserData=userdata,
         TagSpecifications=[
             {
                 'ResourceType': 'instance',
                 'Tags': [
                     {
-                        'Key': 'Nodetype',
-                        'Value': nodetype,
+                        'Key': 'Role',
+                        'Value': role,
                     },
                 ],
             },
-        ],
-        PrivateIpAddress=ip,
+        ]
     )
 
-def createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones, userdata):
+def createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones):
     """
         function that retrievs and processes attributes as well as defining the amount and types of instances to be created
         getting the decired subnet id
@@ -261,8 +183,6 @@ def createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones, userdata
             list of security groups to assign to instances
         availabilityZones : dict{str, str}
             dict of availability zone names an key and subnet ids as value
-        userdata : str
-            script to setup instances
 
         Returns
         -------
@@ -271,30 +191,23 @@ def createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones, userdata
         """
     # Get wanted availability zone
     availability_zone_1a = availabilityZones.get('us-east-1a')
-    slave_instances = createInstance(ec2, "t2.micro", 3, SECURITY_GROUP, availability_zone_1a, slave_userdata, "slave", )
-    master_instances = createInstance(ec2, "t2.micro", 1, SECURITY_GROUP, availability_zone_1a, master_userdata, "master")
+    slave_instances = createInstance(ec2, "t2.micro", 3, SECURITY_GROUP, availability_zone_1a, userdata, "slave")
+    master_instances = createInstance(ec2, "t2.micro", 1, SECURITY_GROUP, availability_zone_1a, userdata, "master")
     instance_ids = []
     instance_ips = []
-    slave_instance_ids = []
-    slave_instance_ips = []
-    master_instance_ids = []
-    master_instance_ips = []
 
     for instance in slave_instances:
         instance_ids.append(instance.id)
-        slave_instance_ids.append({'Id': instance.id})
         instance.wait_until_running()
         instance.reload()
         instance_ips.append(instance.public_ip_address)
-        slave_instance_ips.append(instance.public_ip_address)
 
     for instance in master_instances:
         instance_ids.append(instance.id)
-        master_instance_ids.append({'Id': instance.id})
         instance.wait_until_running()
         instance.reload()
         instance_ips.append(instance.public_ip_address)
-        master_instance_ips.append(instance.public_ip_address)
+
 
     # Wait for all instances to be active!
     instance_running_waiter = ec2_client.get_waiter('instance_running')
@@ -325,7 +238,8 @@ def main():
     print("Zone 1a: ", availabilityZones.get('us-east-1a'), "\n")
 
     """-------------------Create the instances--------------------------"""
-    ins = createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones, userdata)
+    ins = createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones)
+    print("First three are slaves, fourth the master")
     print("Instance ids: \n", str(ins[0]), "\n")
-    print("Instance ips: \n", str(ins[1]), "\n")
+    print("Instance ip: \n", str(ins[1]), "\n")
 main()

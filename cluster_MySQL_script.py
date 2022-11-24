@@ -78,6 +78,16 @@ def createSecurityGroup(ec2_client):
             'IpProtocol': 'tcp',
             'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
         }, {
+            'FromPort': 443,
+            'ToPort': 443,
+            'IpProtocol': 'tcp',
+            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+        }, {
+            'FromPort': 1186,
+            'ToPort': 1186,
+            'IpProtocol': 'tcp',
+            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+        }, {
             'FromPort': 3306,
             'ToPort': 3306,
             'IpProtocol': 'tcp',

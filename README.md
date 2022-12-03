@@ -10,15 +10,28 @@
     region=us-east-1
     output=json
 - Install boto3, matplotlib, requests and tornado with pip
-- Install boto3, matplotlib, requests, fabric and tornado with pip
+- Install boto3, matplotlib, requests, fabric and tqdm with pip
 - Download your personal labsuser.pem file and add it to your repository
 - Make sure to give the labsuser.pem file the right permissions with: "yes | chmod 400 labsuser.pem"
 
-## Run MySQL services
-Run "MySQL_scripts/standalone.py" to create a t2.micro EC2 instance that installs MySQL stand-alone.
-Run "MySQL_scripts/cluster.py" to create four t2.micro instances, including one master and three slaves.
-In the cluster setup, the slaves should do read requests, master should do write requests, but we have to make sure the database is synchronized after a write
-## Test the proxy pattern
-Run "Proxy_scripts/proxyscript.py" in order to run the tests for the proxy pattern.
-## Running whole project
-In order to run the complete project, run  "project_script.py"
+## Benchmark standalone mysql mode and mysql cluster
+Run standalone_vs_cluster.py
+### Automation not working yet
+ssh into master and execute all commands in 'master_commands' found in standalone_vs_cluster.py <br>
+ssh into each slave and execute all commands in 'slave_commands' found in standalone_vs_cluster.py <br>
+ssh into master and execute all commands in 'start_mysqlc_mgmd' found in standalone_vs_cluster.py <br>
+ssh into master and execute all commands in 'sakila_commands' found in standalone_vs_cluster.py <br>
+### getting benchmark results
+Use scp to retrieve the results file from the nodes
+"scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i labsuser.pem ubuntu@<ip-address-standalone>:/../../standalone.txt" <br>
+"scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i labsuser.pem ubuntu@<ip-address-cluster-master>:cluster.txt" <br>
+
+## the proxy
+execute proxy_instance.py on your local device  <br>
+wait untill the ec2 instance is launched <br>
+change the host in proxy_client.py to the public-ip address of the launches ec2 instance
+add proxy_server.py to the ec2 instance <br>
+run proxy_server.py on the ec2 instance via "python3 proxy_server.py <mode>". <br>
+For mode you can choose between: 'direct', 'custom' and 'random'<br>
+execute proxy_client.py on your local device  <br>
+

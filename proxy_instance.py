@@ -1,30 +1,23 @@
 # Keys are defined in configuration file
 # MAKE SURE YOU UPDATED YOUR .AWS/credentials file
-# MAKE SURE boto3, matplotlib, requests, fabric and tornado are all installed using pip
+# MAKE SURE boto3, matplotlib, requests, fabric and tqdm are all installed using pip
 import boto3
 import json
-import time
-import subprocess
-import requests
-from multiprocessing import Pool
-from datetime import date
-from datetime import datetime, timedelta
-
-import botocore
+from time import sleep
+import sys
+from tqdm import tqdm
 import paramiko
 from paramiko import SSHClient
-#from scp import SCPClient
 from pathlib import Path
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-
+import socket
 """
 The user data constants are used to setup and download programs on the instances
 They are passed as arguments in the create instance step
 """
 
-userdata = """
-"""
+proxy_userdata="""
+""" 
+
 
 def createSecurityGroup(ec2_client):
     """
@@ -50,51 +43,31 @@ def createSecurityGroup(ec2_client):
     # Create security group, using SSH & HHTP access available from anywhere
     groups = ec2_client.describe_security_groups()
     vpc_id = groups["SecurityGroups"][0]["VpcId"]
+    clustername = "Proxy" 
 
     new_group = ec2_client.create_security_group(
         Description="SSH and HTTP access",
-        GroupName="clusterMySQL",
+        GroupName=clustername,
         VpcId=vpc_id
     )
 
     # Wait for the security group to exist!
     new_group_waiter = ec2_client.get_waiter('security_group_exists')
-    new_group_waiter.wait(GroupNames=["clusterMySQL"])
+    new_group_waiter.wait(GroupNames=[clustername])
 
     group_id = new_group["GroupId"]
 
     rule_creation = ec2_client.authorize_security_group_ingress(
-        GroupName="clusterMySQL",
+        GroupName=clustername,
         GroupId=group_id,
-        IpPermissions=[{
-            'FromPort': 22,
-            'ToPort': 22,
-            'IpProtocol': 'tcp',
-            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-        },
+        IpPermissions=[
         {
-            'FromPort': 80,
-            'ToPort': 80,
-            'IpProtocol': 'tcp',
-            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-        }, {
-            'FromPort': 443,
-            'ToPort': 443,
-            'IpProtocol': 'tcp',
-            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-        }, {
-            'FromPort': 1186,
-            'ToPort': 1186,
-            'IpProtocol': 'tcp',
-            'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-        }, {
-            'FromPort': 3306,
-            'ToPort': 3306,
-            'IpProtocol': 'tcp',
+            'FromPort': 0,
+            'ToPort': 65535,
+            'IpProtocol': '-1',
             'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
         }]
     )
-
     SECURITY_GROUP = [group_id]
     return SECURITY_GROUP, vpc_id
 
@@ -149,7 +122,6 @@ def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdat
             list of all created instances, including their data
 
         """
-    # Don't change these
     KEY_NAME = "vockey"
     INSTANCE_IMAGE = "ami-08d4ac5b634553e16"
 
@@ -175,57 +147,6 @@ def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdat
         ]
     )
 
-def createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones):
-    """
-        function that retrievs and processes attributes as well as defining the amount and types of instances to be created
-        getting the decired subnet id
-        calling function create instance to create the instances
-        parces the return to just return the ids and ips of the instances
-        currently handle only creation of one instance
-
-        Parameters
-        ----------
-        ec2_client : client
-            Boto3 client to access certain function to controll AWS CLI
-        ec2 : client
-            Boto3 client to access certain function to controll AWS CLI
-        SECURITY_GROUP : array[str]
-            list of security groups to assign to instances
-        availabilityZones : dict{str, str}
-            dict of availability zone names an key and subnet ids as value
-
-        Returns
-        -------
-        array
-            containg instance id and ip
-        """
-    # Get wanted availability zone
-    availability_zone_1a = availabilityZones.get('us-east-1a')
-    slave_instances = createInstance(ec2, "t2.micro", 3, SECURITY_GROUP, availability_zone_1a, userdata, "slave")
-    master_instances = createInstance(ec2, "t2.micro", 1, SECURITY_GROUP, availability_zone_1a, userdata, "master")
-    instance_ids = []
-    instance_ips = []
-
-    for instance in slave_instances:
-        instance_ids.append(instance.id)
-        instance.wait_until_running()
-        instance.reload()
-        instance_ips.append(instance.public_ip_address)
-
-    for instance in master_instances:
-        instance_ids.append(instance.id)
-        instance.wait_until_running()
-        instance.reload()
-        instance_ips.append(instance.public_ip_address)
-
-
-    # Wait for all instances to be active!
-    instance_running_waiter = ec2_client.get_waiter('instance_running')
-    instance_running_waiter.wait(InstanceIds=(instance_ids))
-
-    return [instance_ids, instance_ips]
-
-
 def main():
     """
         main function fer performing the application
@@ -247,9 +168,11 @@ def main():
     print("Availability zones:")
     print("Zone 1a: ", availabilityZones.get('us-east-1a'), "\n")
 
-    """-------------------Create the instances--------------------------"""
-    ins = createInstances(ec2_client, ec2, SECURITY_GROUP, availabilityZones)
-    print("First three are slaves, fourth the master")
-    print("Instance ids: \n", str(ins[0]), "\n")
-    print("Instance ip: \n", str(ins[1]), "\n")
+    """-------------------Create proxy instances--------------------------"""    
+    availability_zone_1a = availabilityZones.get('us-east-1a')
+    proxy_instance = createInstance(ec2, "t2.large", 1, SECURITY_GROUP, availability_zone_1a, proxy_userdata, "proxy")
+    proxy_instance[0].wait_until_running()
+    proxy_instance[0].reload()
+    proxy_id, proxy_ip, proxy_dns = proxy_instance[0].id, proxy_instance[0].public_ip_address, proxy_instance[0].private_dns_name
+    print(proxy_id, proxy_ip, proxy_dns)
 main()

@@ -211,6 +211,7 @@ def getCommands(instances_private_dns):
         # General
         'sudo apt-get update',
         'yes | sudo apt-get upgrade',
+        'sudo chmod 777 /~',
 
         # Get MySQL done
         'sudo mkdir -p /opt/mysqlcluster/home',
@@ -273,13 +274,17 @@ def getCommands(instances_private_dns):
         '/opt/mysqlcluster/home/mysqlc/bin/ndb_mgmd -f /opt/mysqlcluster/deploy/conf/config.ini --initial --configdir=/opt/mysqlcluster/deploy/conf/'
     ]
 
-    start_mysqlc_mgmd = ['/opt/mysqlcluster/home/mysqlc/bin/mysqld --defaults-file=/opt/mysqlcluster/deploy/conf/my.cnf --user=root &']
+    start_mysqlc_mgmd = [
+        'sudo chmod 777 /~',
+        '/opt/mysqlcluster/home/mysqlc/bin/mysqld --defaults-file=/opt/mysqlcluster/deploy/conf/my.cnf --user=root &'
+        ]
 
 
     slave_commands = [
         # General
         'sudo apt-get update',
         'yes | sudo apt-get upgrade',
+        'sudo chmod 777 /~',
 
         # Get MySQL done
         'sudo mkdir -p /opt/mysqlcluster/home',
@@ -302,6 +307,7 @@ def getCommands(instances_private_dns):
     ]
 
     sakila_commands = [
+        'sudo chmod 777 /~',
         # Sakila
         'sudo wget http://downloads.mysql.com/docs/sakila-db.zip',
         'sudo apt install unzip',

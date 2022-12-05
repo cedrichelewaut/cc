@@ -1,5 +1,19 @@
 import socket
-with socket.socket() as s:
-    host = '3.89.87.91' # public IP van de ec2 instance	
-    s.connect((host, 5050))
-    s.send(bytes("hello", "utf-8"))
+
+main():
+    """"
+        Establishing connection with the proxy node and send commands
+    """"
+    with socket.socket() as s:
+        """-------------------Ask user for proxy node IP address and connect node------------------------""" 
+        host = input("Provide IP address of the proxy node: ")
+        s.connect((host, 5050))
+        while True:
+            """-------------------Install required pymysql package-------------------------""" 
+            command = input("Please enter your next command, enter 'stop' to finish")
+            if command == "stop":
+                break
+            s.send(bytes(command, "utf-8"))
+            response = s.recv(1024)
+            print('response: ' + response.decode("utf-8"))
+main()

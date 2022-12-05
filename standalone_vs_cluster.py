@@ -191,6 +191,22 @@ def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdat
     )
 
 def getCommands(instances_private_dns):
+    """
+        generate commands for setting up all instances
+
+        Parameters
+        ----------
+        instances_private_dns : str
+            Private dns addresses of all nodes
+            order: standalone, master, slave1, slave2, slave3
+
+        Returns
+        -------
+        commands : list
+            list of all created commands
+            order: sakila_commands, master_commands, slave_commands, slave_commands, slave_commands, start_mysqlc_mgmd
+
+        """
     master_commands = [
         # General
         'sudo apt-get update',
@@ -233,7 +249,8 @@ def getCommands(instances_private_dns):
         'echo "nodeid=1" >> /opt/mysqlcluster/deploy/conf/config.ini',
         'echo " " >> /opt/mysqlcluster/deploy/conf/config.ini',
         'echo "[ndbd default]" >> /opt/mysqlcluster/deploy/conf/config.ini',
-        'echo "noofreplicas=3" >> /opt/mysqlcluster/deploy/conf/config.ini',
+        'echo "noofreplicas=1" >> /opt/mysqlcluster/deploy/conf/config.ini',
+        #'echo "noofreplicas=3" >> /opt/mysqlcluster/deploy/conf/config.ini',
         'echo "datadir=/opt/mysqlcluster/deploy/ndb_data" >> /opt/mysqlcluster/deploy/conf/config.ini',
         'echo " " >> /opt/mysqlcluster/deploy/conf/config.ini',
         'echo "[ndbd]" >> /opt/mysqlcluster/deploy/conf/config.ini',
@@ -293,24 +310,48 @@ def getCommands(instances_private_dns):
         'sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "SOURCE /tmp/sakila-db/sakila-data.sql;"',
 
         # https://fedingo.com/how-to-automate-mysql_secure_installation-script/
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "UPDATE mysql.user SET Password=PASSWORD('root') WHERE User='root';"''',
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "DELETE FROM mysql.user WHERE User='';"''',
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"''',
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "DROP DATABASE IF EXISTS test;"''',
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "FLUSH PRIVILEGES;"''',
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "CREATE USER 'cedric'@'%' IDENTIFIED BY 'password';"''',
-        '''sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -e "GRANT ALL PRIVILEGES on sakila.* TO 'cedric'@'localhost';"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "UPDATE mysql.user SET Password=PASSWORD('root') WHERE User='root';"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "DELETE FROM mysql.user WHERE User='';"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "DROP DATABASE IF EXISTS test;"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "FLUSH PRIVILEGES;"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "CREATE USER 'cedric'@'%' IDENTIFIED BY 'password';"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "GRANT ALL PRIVILEGES on sakila.* TO 'cedric'@'localhost';"''',
 
 
         # Sysbench installation and benchmarking
         'yes | sudo apt-get install sysbench',
-        'sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
-        'sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster.txt'
+        # 'sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
+        # 'sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster.txt'
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster.txt'
         ]
 
-    return [sakila_commands, master_commands, slave_commands, slave_commands, slave_commands, start_mysqlc_mgmd]
+    commands = [sakila_commands, master_commands, slave_commands, slave_commands, slave_commands, start_mysqlc_mgmd]
+    return commands
 
 def executeCommands(rsakey, ssh_client, setup_commands, instances_public_dns):
+    """
+        execute commands for setting up all instances
+
+        Parameters
+        ----------
+        rsakey
+            key needed to access the instances
+        ssh_client
+            Paramiko ssh client
+        setup_commands : list of lists
+            list of list of all commands required for the set-up
+            order: sakila_commands, master_commands, slave_commands, slave_commands, slave_commands, start_mysqlc_mgmd
+        instances_public_dns: list
+            list with the dns address of all nodes
+            order: standalone, master, slave1, slave2, slave3
+
+        Returns
+        -------
+        None
+            nothing is returned
+        """
     # Execute commands on each of the cluster nodes
     for i in range(1, len(instances_public_dns)):
         ssh_client.connect(hostname = instances_public_dns[i], username = "ubuntu", pkey = rsakey)
@@ -341,9 +382,11 @@ def executeCommands(rsakey, ssh_client, setup_commands, instances_public_dns):
 
 def main():
     """
-        main function fer performing the application
+        main function for performing the application
         Connects to the boto3 clients
-        calls the required functions
+        calls functions for setting up ec2 instances
+        calls functions to execute set-up commands on all instances
+        calls functions to benchmark both standalone and cluster setup
 
         """
     """------------Get necesarry clients from boto3------------------------"""

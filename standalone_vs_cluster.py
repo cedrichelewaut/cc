@@ -53,9 +53,12 @@ sudo mysql -e "GRANT ALL PRIVILEGES on sakila.* TO 'cedric'@'localhost';"
 
 # Sysbench installation and benchmarking
 yes | sudo apt-get install sysbench
-# Prepare
+# Read only
 sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua prepare
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua run > standalone.txt
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua run > standalone_r.txt
+# Read and Write
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua prepare
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua run > standalone_rw.txt
 """
 
 cluster_userdata = """
@@ -88,7 +91,7 @@ def createSecurityGroup(ec2_client):
     clustername = "securityG" 
 
     new_group = ec2_client.create_security_group(
-        Description="SSH and HTTP access",
+        Description="All access",
         GroupName=clustername,
         VpcId=vpc_id
     )
@@ -210,8 +213,6 @@ def getCommands(instances_private_dns):
     master_commands = [
         # General
         'sudo apt-get update',
-        'yes | sudo apt-get upgrade',
-        'sudo chmod 777 /~',
 
         # Get MySQL done
         'sudo mkdir -p /opt/mysqlcluster/home',
@@ -238,6 +239,7 @@ def getCommands(instances_private_dns):
         'sudo chmod -R 777 /opt/mysqlcluster/deploy',
 
         # Edit my.cnf
+        'sudo chmod -R 777 /opt/mysqlcluster/deploy/conf',
         'echo "[mysqld]" > /opt/mysqlcluster/deploy/conf/my.cnf',
         'echo "datadir=/opt/mysqlcluster/deploy/mysqld_data" >> /opt/mysqlcluster/deploy/conf/my.cnf',
         'echo "basedir=/opt/mysqlcluster/home/mysqlc" >> /opt/mysqlcluster/deploy/conf/my.cnf',
@@ -271,11 +273,17 @@ def getCommands(instances_private_dns):
 
         # Mysql
         '/opt/mysqlcluster/home/mysqlc/scripts/mysql_install_db --basedir=/opt/mysqlcluster/home/mysqlc --no-defaults --datadir=/opt/mysqlcluster/deploy/mysqld_data',
-        '/opt/mysqlcluster/home/mysqlc/bin/ndb_mgmd -f /opt/mysqlcluster/deploy/conf/config.ini --initial --configdir=/opt/mysqlcluster/deploy/conf/'
+        '/opt/mysqlcluster/home/mysqlc/bin/ndb_mgmd -f /opt/mysqlcluster/deploy/conf/config.ini --initial --configdir=/opt/mysqlcluster/deploy/conf/',
+        'ndb_mgm -e show',
+        '''ndb_mgm -e "all status"'''
     ]
 
     start_mysqlc_mgmd = [
-        'sudo chmod 777 /~',
+        'ndb_mgm -e show',
+        '''ndb_mgm -e "all status"''',
+        'sudo chmod -R 777 /opt/mysqlcluster/deploy/mysqld_data',
+        'sudo chmod -R 777 /opt/mysqlcluster/deploy/ndb_data',
+        'sudo chmod -R 777 /opt/mysqlcluster/home/mysqlc',
         '/opt/mysqlcluster/home/mysqlc/bin/mysqld --defaults-file=/opt/mysqlcluster/deploy/conf/my.cnf --user=root &'
         ]
 
@@ -283,8 +291,6 @@ def getCommands(instances_private_dns):
     slave_commands = [
         # General
         'sudo apt-get update',
-        'yes | sudo apt-get upgrade',
-        'sudo chmod 777 /~',
 
         # Get MySQL done
         'sudo mkdir -p /opt/mysqlcluster/home',
@@ -306,8 +312,9 @@ def getCommands(instances_private_dns):
         f'/opt/mysqlcluster/home/mysqlc/bin/ndbd -c {instances_private_dns[1]}'
     ]
 
-    sakila_commands = [
+    sakila_commands0 = [
         'sudo chmod 777 /~',
+        'sudo chmod 777 /opt/mysqlcluster/home/mysqlc/bin/mysql',
         # Sakila
         'sudo wget http://downloads.mysql.com/docs/sakila-db.zip',
         'sudo apt install unzip',
@@ -321,17 +328,47 @@ def getCommands(instances_private_dns):
         '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"''',
         '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "DROP DATABASE IF EXISTS test;"''',
         '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "FLUSH PRIVILEGES;"''',
-        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "CREATE USER 'cedric'@'%' IDENTIFIED BY 'password';"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "CREATE USER 'cedric'@'%' IDENTIFIED BY 'password'"''',
         '''/opt/mysqlcluster/home/mysqlc/bin/mysql -e "GRANT ALL PRIVILEGES on sakila.* TO 'cedric'@'localhost';"''',
 
 
         # Sysbench installation and benchmarking
         'yes | sudo apt-get install sysbench',
-        # 'sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
-        # 'sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster.txt'
-        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
-        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster.txt'
+        # Read only
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_only.lua --mysql_storage_engine=ndbcluster prepare',
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster_r.txt',
+        # Read and Write
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster_rw.txt'
         ]
+    sakila_commands = [
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -uroot -e "UPDATE mysql.user SET Password = PASSWORD('password') WHERE User = 'root'"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -uroot -e "DROP USER ''@'localhost'"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -uroot -e "DROP USER ''@'$(hostname)'"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -uroot -e "DROP DATABASE test"''',
+        '''/opt/mysqlcluster/home/mysqlc/bin/mysql -uroot -e "FLUSH PRIVILEGES"''',
+        '''sudo apt install unzip''',
+        # Sakila
+        'sudo wget http://downloads.mysql.com/docs/sakila-db.zip',
+        'sudo apt install unzip',
+        'sudo unzip sakila-db.zip -d "/tmp/"',
+        'sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -u root -p"password" -e "SOURCE /tmp/sakila-db/sakila-schema.sql;"',
+        'sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -u root -p"password" -e "SOURCE /tmp/sakila-db/sakila-data.sql;"',
+        'sudo /opt/mysqlcluster/home/mysqlc/bin/mysql -u root -p"password" -e "USE sakila;"',
+
+ 
+        # Sysbench installation and benchmarking
+        'yes | sudo apt-get install sysbench',
+        # Read only
+        #1186
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_only.lua --mysql_storage_engine=ndbcluster prepare',
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster_r.txt',
+        # Read and Write
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster prepare',
+        'sudo sysbench --db-driver=mysql --mysql-host=127.0.0.1 --mysql-user=root --mysql_password=password --mysql-db=sakila --tables=8 --table-size=1000 --num-threads=6 --max-time=60 /usr/share/sysbench/oltp_read_write.lua --mysql_storage_engine=ndbcluster run > cluster_rw.txt'
+        ]
+
+
 
     commands = [sakila_commands, master_commands, slave_commands, slave_commands, slave_commands, start_mysqlc_mgmd]
     return commands
@@ -358,32 +395,52 @@ def executeCommands(rsakey, ssh_client, setup_commands, instances_public_dns):
         None
             nothing is returned
         """
+    skips = [
+        'sudo tar -xvf /opt/mysqlcluster/home/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64.tar.gz -C /opt/mysqlcluster/home/',
+        'sudo apt-get update',
+        'sudo wget http://downloads.mysql.com/docs/sakila-db.zip',
+        'sudo wget http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.4/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64.tar.gz -P /opt/mysqlcluster/home/',
+        'sudo tar -xvf /opt/mysqlcluster/home/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64.tar.gz -C /opt/mysqlcluster/home/',
+        'yes | sudo apt-get install sysbench',
+        'sudo apt-get update && sudo apt-get -y install libncurses5',
+        'sudo ln -s /opt/mysqlcluster/home/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64 /opt/mysqlcluster/home/mysqlc'
+        ]
     # Execute commands on each of the cluster nodes
     for i in range(1, len(instances_public_dns)):
         ssh_client.connect(hostname = instances_public_dns[i], username = "ubuntu", pkey = rsakey)
         for command in setup_commands[i]:
-            stdin , stdout, stderr = ssh_client.exec_command(command) 
+            stdin , stdout, stderr = ssh_client.exec_command(command)
             while True:
+                if command not in skips:
+                    print(command + "    ----->    " + stdout.readline())
                 if stdout.channel.exit_status_ready():
                     break
-                time.sleep(0.1)
-    time.sleep(20)
+    
+    time.sleep(10)
 
     # Start the mgmd
     ssh_client.connect(hostname = instances_public_dns[1], username = "ubuntu", pkey = rsakey)
     for command in setup_commands[5]:
         stdin , stdout, stderr = ssh_client.exec_command(command)
-    time.sleep(20)
+        count = 15
+        while count > 0:
+            if command not in skips:
+                print(command + "    ----->    " + stdout.readline())
+            if count < 0:
+                break
+            count -= 1
+    time.sleep(30)
 
     # Execute Sakila commands on the master node
     ssh_client.connect(hostname = instances_public_dns[1], username = "ubuntu", pkey = rsakey)
     for command in setup_commands[0]:
         stdin , stdout, stderr = ssh_client.exec_command(command) 
         while True:
+            if command not in skips:
+                print(command + "    ----->    " + stdout.readline())
             if stdout.channel.exit_status_ready():
                 break
-            time.sleep(0.1)
-    time.sleep(20)
+    time.sleep(10)
     return None
 
 def main():
@@ -443,6 +500,8 @@ def main():
     executeCommands(rsakey, ssh_client, getCommands(instances_private_dns), instances_public_dns)
 
     """-------------------get benchmark results from machine--------------------------"""  
-    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[0])+":/../../standalone.txt", '.'])
-    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster.txt", '.'])
+    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[0])+":/../../standalone_r.txt", '/benchmarking_results'])
+    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster_rw.txt", '/benchmarking_results'])
+    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster_r.txt", '/benchmarking_results'])
+    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster_rw.txt", '/benchmarking_results'])
 main()

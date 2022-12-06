@@ -1,0 +1,30 @@
+WARNING: --num-threads is deprecated, use --threads instead
+WARNING: --max-time is deprecated, use --time instead
+sysbench 1.0.18 (using system LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 6
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+FATAL: unable to connect to MySQL server on host '127.0.0.1', port 3306, aborting...
+FATAL: error 2003: Can't connect to MySQL server on '127.0.0.1:3306' (111)
+FATAL: `thread_init' function failed: /usr/share/sysbench/oltp_common.lua:349: connection creation failed
+FATAL: unable to connect to MySQL server on host '127.0.0.1', port 3306, aborting...
+FATAL: error 2003: Can't connect to MySQL server on '127.0.0.1:3306' (111)
+FATAL: `thread_init' function failed: /usr/share/sysbench/oltp_common.lua:349: connection creation failed
+FATAL: unable to connect to MySQL server on host '127.0.0.1', port 3306, aborting...
+FATAL: error 2003: Can't connect to MySQL server on '127.0.0.1:3306' (111)
+FATAL: `thread_init' function failed: /usr/share/sysbench/oltp_common.lua:349: connection creation failed
+FATAL: unable to connect to MySQL server on host '127.0.0.1', port 3306, aborting...
+FATAL: error 2003: Can't connect to MySQL server on '127.0.0.1:3306' (111)
+FATAL: `thread_init' function failed: /usr/share/sysbench/oltp_common.lua:349: connection creation failed
+FATAL: unable to connect to MySQL server on host '127.0.0.1', port 3306, aborting...
+FATAL: error 2003: Can't connect to MySQL server on '127.0.0.1:3306' (111)
+FATAL: `thread_init' function failed: /usr/share/sysbench/oltp_common.lua:349: connection creation failed
+FATAL: unable to connect to MySQL server on host '127.0.0.1', port 3306, aborting...
+FATAL: error 2003: Can't connect to MySQL server on '127.0.0.1:3306' (111)
+FATAL: `thread_init' function failed: /usr/share/sysbench/oltp_common.lua:349: connection creation failed
+FATAL: Thread initialization failed!

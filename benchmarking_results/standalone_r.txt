@@ -1,0 +1,39 @@
+WARNING: --num-threads is deprecated, use --threads instead
+WARNING: --max-time is deprecated, use --time instead
+sysbench 1.0.18 (using system LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 6
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+Threads started!
+
+SQL statistics:
+    queries performed:
+        read:                            226422
+        write:                           64666
+        other:                           32335
+        total:                           323423
+    transactions:                        16162  (269.27 per sec.)
+    queries:                             323423 (5388.44 per sec.)
+    ignored errors:                      11     (0.18 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          60.0179s
+    total number of events:              16162
+
+Latency (ms):
+         min:                                    5.80
+         avg:                                   22.28
+         max:                                  110.80
+         95th percentile:                       34.33
+         sum:                               360010.44
+
+Threads fairness:
+    events (avg/stddev):           2693.6667/6.16
+    execution time (avg/stddev):   60.0017/0.01
+

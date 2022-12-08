@@ -1,5 +1,0 @@
-import subprocess
-subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@44.199.232.248:/../../standalone_r.txt", '/home/cedri/cc/benchmarking_results'])
-subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@44.199.232.248:/../../standalone_rw.txt", '/home/cedri/cc/benchmarking_results'])
-subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@44.200.243.155:cluster_r.txt", '/home/cedri/cc/benchmarking_results'])
-subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@44.200.243.155:cluster_rw.txt", '/home/cedri/cc/benchmarking_results'])

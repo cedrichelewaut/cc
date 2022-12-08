@@ -1,16 +1,17 @@
 import socket
 
-main():
-    """"
+def main():
+    """
         Establishing connection with the proxy node and send commands
-    """"
+    """
     with socket.socket() as s:
         """-------------------Ask user for proxy node IP address and connect node------------------------""" 
         host = input("Provide IP address of the proxy node: ")
+        print(host)
         s.connect((host, 5050))
         while True:
             """-------------------Install required pymysql package-------------------------""" 
-            command = input("Please enter your next command, enter 'stop' to finish")
+            command = input("Next command (enter 'stop' to finish): ")
             if command == "stop":
                 break
             s.send(bytes(command, "utf-8"))

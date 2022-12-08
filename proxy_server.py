@@ -2,12 +2,12 @@ import subprocess
 import socket
 import mysql.connector
 import random
-
+# execute: y | sudo apt-get install python3-pip
+# execute pip install mysql-connector
 """-------------------Install required pymysql package-------------------------"""  
-subprocess.call(['sudo pip install pymysql'])
 
 def get_ips():
-        """
+    """
         Function asks user to input the ip addresses
 
         Parameters
@@ -62,7 +62,7 @@ def get_instruction_type(data):
             Type of command, either 'read' or 'write
     """
     insn_type = ''
-    if data[:6] == "SELECT":
+    if ('SELECT' in data) or ('select' in data):
         insn_type = 'read'
     else:
         insn_type = 'write'
@@ -89,14 +89,16 @@ def get_target(mode, insn_type, ips):
     ip_slaves = ips[1:]
     target = 'not_defined'
     if mode == 'direct' or insn_type == 'write':
-        target = ip_MASTER
+        target = ips[0]
     elif mode == 'random':
         target = random.choice(ip_slaves)
+        print(target + " is a randomly selected slave node")
     else:
         slaves = [mysql.connector.connect(host = ip, user='proxy', password='password') for ip in ip_slaves]
         pings = [ping(slave.serverhost) for slave in slaves]
         ping_times = [ping.rtt_avg for ping in pings]
         target = ip_slaves[ping_times.index(min(ping_times))]
+        print(target + " was selected based on its low latency")
     if target == 'not_defined':
         "WARNING: Failed to assign a target"
     return target
@@ -122,7 +124,8 @@ def execute_command(data, target):
             print(cur.fetchall())
             con.commit()
             print('executed command: ' + data + ' on ' + target)
-    return None
+    except:
+        print("Execution did not work")
 
 def main():
     """
@@ -148,6 +151,8 @@ def main():
             while True:
                 """-------------------Get next command------------------------"""  
                 data = clientsocket.recv(1024)
+                data = data.decode("utf-8")
+                print("Received command: " + data)
 
                 """-------------------Break if no data is received anymore-------------------------"""  
                 if not data:
@@ -155,12 +160,14 @@ def main():
 
                 """-------------------Check if command is read or write-------------------------"""  
                 insn_type = get_instruction_type(data)
+                print("This is a : " + insn_type + "-command")
 
                 """-------------------Get address of node to which command should be sent -------------------------"""  
-                target = get_slave(mode, insn_type)
+                target = get_target(mode, insn_type, ips)
+                print("We will send this to : " + str(target))
 
                 """-------------------Execute command on right node-------------------------"""  
-                execute_command(data, bind_address)
+                execute_command(data, target)
 
                 """-------------------Execute command on right node-------------------------"""  
                 print('response: ' + response.decode("utf-8"))

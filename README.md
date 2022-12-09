@@ -19,6 +19,8 @@ The results from the OLTP write-only benchmarks have extention '_w'<br>
 The results from the OLTP read-and-write benchmarks have extention '_rw'<br>
 
 ## Cloud patterns (not finished)
+! Both patterns are unable to establish connection with the cluster nodes.<br>
+Aside from this, all logic is implemented
 ### Proxy
 Have the MySQL cluster running<br>
 Execute proxy_instance.py on your local device to launch the proxy <br>

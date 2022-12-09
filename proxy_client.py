@@ -1,4 +1,5 @@
 import socket
+import time
 
 def main():
     """
@@ -14,7 +15,9 @@ def main():
             command = input("Next command (enter 'stop' to finish): ")
             if command == "stop":
                 break
+            start = time.time()
             s.send(bytes(command, "utf-8"))
             response = s.recv(1024)
-            print('response: ' + response.decode("utf-8"))
+            stop = time.time()
+            print('Received response: ' + response.decode("utf-8") + ' after ' + str(stop - start) + 'seconds.')
 main()

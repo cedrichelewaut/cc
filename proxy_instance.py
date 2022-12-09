@@ -149,6 +149,7 @@ def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdat
 
 def main():
     """
+        Launch proxy_instance
         main function fer performing the application
         Connects to the boto3 clients
         calls the required functions

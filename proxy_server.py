@@ -2,7 +2,7 @@ import subprocess
 import socket
 import mysql.connector
 import random
-# execute: y | sudo apt-get install python3-pip
+# execute: sudo apt-get install python3-pip
 # execute pip install mysql-connector
 """-------------------Install required pymysql package-------------------------"""  
 

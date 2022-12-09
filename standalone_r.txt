@@ -1,8 +1,7 @@
-WARNING: --num-threads is deprecated, use --threads instead
 sysbench 1.0.18 (using system LuaJIT 2.1.0-beta3)
 
 Running the test with following options:
-Number of threads: 6
+Number of threads: 1
 Initializing random number generator from current time
 
 
@@ -12,27 +11,27 @@ Threads started!
 
 SQL statistics:
     queries performed:
-        read:                            70490
+        read:                            68180
         write:                           0
-        other:                           10070
-        total:                           80560
-    transactions:                        5035   (502.98 per sec.)
-    queries:                             80560  (8047.63 per sec.)
+        other:                           9740
+        total:                           77920
+    transactions:                        4870   (486.83 per sec.)
+    queries:                             77920  (7789.31 per sec.)
     ignored errors:                      0      (0.00 per sec.)
     reconnects:                          0      (0.00 per sec.)
 
 General statistics:
-    total time:                          10.0082s
-    total number of events:              5035
+    total time:                          10.0012s
+    total number of events:              4870
 
 Latency (ms):
-         min:                                    8.35
-         avg:                                   11.92
-         max:                                   42.06
-         95th percentile:                       14.21
-         sum:                                60003.51
+         min:                                    1.66
+         avg:                                    2.05
+         max:                                   28.37
+         95th percentile:                        3.43
+         sum:                                 9984.41
 
 Threads fairness:
-    events (avg/stddev):           839.1667/3.13
-    execution time (avg/stddev):   10.0006/0.00
+    events (avg/stddev):           4870.0000/0.00
+    execution time (avg/stddev):   9.9844/0.00
 

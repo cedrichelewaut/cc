@@ -139,6 +139,7 @@ def createInstance(ec2, INSTANCE_TYPE, COUNT, SECURITY_GROUP, SUBNET_ID, userdat
 
 def main():
     """
+        Launch the gatekeeper_instance
         main function fer performing the application
         Connects to the boto3 clients
         calls the required functions
@@ -159,7 +160,7 @@ def main():
 
     """-------------------Create proxy instances--------------------------"""    
     availability_zone_1a = availabilityZones.get('us-east-1a')
-    proxy_instance = createInstance(ec2, "t2.large", 1, SECURITY_GROUP, availability_zone_1a, proxy_userdata, "proxy")
+    proxy_instance = createInstance(ec2, "t2.large", 1, SECURITY_GROUP, availability_zone_1a, proxy_userdata, "gatekeeper")
     proxy_instance[0].wait_until_running()
     proxy_instance[0].reload()
     proxy_id, proxy_ip, proxy_dns = proxy_instance[0].id, proxy_instance[0].public_ip_address, proxy_instance[0].private_dns_name

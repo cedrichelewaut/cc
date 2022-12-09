@@ -55,13 +55,17 @@ sudo mysql -e "GRANT ALL PRIVILEGES on sakila.* TO 'cedric'@'localhost';"
 # Sysbench installation and benchmarking
 yes | sudo apt-get install sysbench
 # Read only
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_only.lua prepare
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_only.lua run > standalone_r.txt
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_only.lua cleanup
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_only.lua prepare
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_only.lua run > standalone_r.txt
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_only.lua cleanup
+# Write
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_write_only.lua prepare
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_write_only.lua run > standalone_w.txt
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_write_only.lua cleanup
 # Read and Write
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_write.lua prepare
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_write.lua run > standalone_rw.txt
-sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_write.lua cleanup
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_write.lua prepare
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_write.lua run > standalone_rw.txt
+sysbench --db-driver=mysql --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_write.lua cleanup
 """
 
 cluster_userdata = """
@@ -334,13 +338,17 @@ def getCommands(instances_private_dns, master_ip):
         'yes | sudo apt-get install sysbench',
         # Read only
         # Change mysql host to ip of master
-        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_only.lua prepare',
-        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_only.lua run > cluster_r.txt',
-        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_only.lua cleanup',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_only.lua prepare',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_only.lua run > cluster_r.txt',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_only.lua cleanup',
         # Read and Write
-        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_write.lua prepare',
-        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_write.lua run > cluster_rw.txt',
-        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=50000 --num-threads=6 /usr/share/sysbench/oltp_read_write.lua cleanup'
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_write_only.lua prepare',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_write_only.lua run > cluster_w.txt',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_write_only.lua cleanup',
+        # Read and Write
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_write.lua prepare',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_write.lua run > cluster_rw.txt',
+        f'sudo sysbench --db-driver=mysql --mysql-host={master_ip} --mysql-user=cedric --mysql_password=password --mysql-db=sakila --tables=8 --table-size=100000 /usr/share/sysbench/oltp_read_write.lua cleanup'
         ]
 
     commands = [sakila_commands, master_commands, slave_commands, slave_commands, slave_commands, start_mysqlc_mgmd]
@@ -368,25 +376,13 @@ def executeCommands(rsakey, ssh_client, setup_commands, instances_public_dns):
         None
             nothing is returned
         """
-    skips = [
-        'sudo tar -xvf /opt/mysqlcluster/home/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64.tar.gz -C /opt/mysqlcluster/home/',
-        'sudo apt-get update',
-        'sudo wget http://downloads.mysql.com/docs/sakila-db.zip',
-        'sudo wget http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.4/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64.tar.gz -P /opt/mysqlcluster/home/',
-        'sudo tar -xvf /opt/mysqlcluster/home/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64.tar.gz -C /opt/mysqlcluster/home/',
-        'yes | sudo apt-get install sysbench',
-        'sudo apt-get update && sudo apt-get -y install libncurses5',
-        'sudo ln -s /opt/mysqlcluster/home/mysql-cluster-gpl-7.4.10-linux-glibc2.5-x86_64 /opt/mysqlcluster/home/mysqlc'
-        ]
-    # Execute commands on each of the cluster nodes
+
+    # Execute bacommands on each of the cluster nodes
     for i in range(1, len(instances_public_dns)):
         ssh_client.connect(hostname = instances_public_dns[i], username = "ubuntu", pkey = rsakey)
         for command in setup_commands[i]:
             stdin , stdout, stderr = ssh_client.exec_command(command)
             while True:
-                if command not in skips:
-                    print("input: " + command)
-                    print(stdout.readline())
                 if stdout.channel.exit_status_ready():
                     break
                 time.sleep(1)
@@ -396,7 +392,6 @@ def executeCommands(rsakey, ssh_client, setup_commands, instances_public_dns):
     # Start the mgmd
     ssh_client.connect(hostname = instances_public_dns[1], username = "ubuntu", pkey = rsakey)
     for command in setup_commands[5]:
-        print("input: " + command)
         stdin , stdout, stderr = ssh_client.exec_command(command)
 
     # Wait for start-up to complete
@@ -408,9 +403,6 @@ def executeCommands(rsakey, ssh_client, setup_commands, instances_public_dns):
     for command in setup_commands[0]:
         stdin , stdout, stderr = ssh_client.exec_command(command) 
         while True:
-            if command not in skips:
-                print("input: " + command)
-                print(stdout.readline())
             if stdout.channel.exit_status_ready():
                 break
             time.sleep(1)
@@ -478,7 +470,9 @@ def main():
 
     """-------------------get benchmark results from machine--------------------------"""  
     subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[0])+":/../../standalone_r.txt", '.'])
+    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[0])+":/../../standalone_w.txt", '.'])
     subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[0])+":/../../standalone_rw.txt", '.'])
     subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster_r.txt", '.'])
+    subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster_w.txt", '.'])
     subprocess.call(['scp', '-o','StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', 'labsuser.pem', "ubuntu@"+str(instances_ips[1])+":cluster_rw.txt", '.'])
 main()

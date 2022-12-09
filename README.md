@@ -1,12 +1,12 @@
 # LOG8415_FinalProject
 ## AWS SET-UP
 Download AWS CLI: https://aws.amazon.com/cli/ <br>
-Make sure .aws/credentials file has security keys and access token<br>
+Make sure .aws/credentials file has the right security key and access token<br>
 Make sure .aws/config file has following content:<br>
     [default]<br>
     region=us-east-1<br>
     output=json<br>
-Install boto3, matplotlib, requests, fabric and tqdm with pip<br>
+Install boto3, subprocess and tqdm with pip<br>
 Download your personal labsuser.pem file and add it to your repository<br>
 Make sure to give the labsuser.pem file the right permissions with: "yes | chmod 400 labsuser.pem"<br>
 
